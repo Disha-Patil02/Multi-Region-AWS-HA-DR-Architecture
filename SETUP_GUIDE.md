@@ -28,7 +28,7 @@ If you do switch to a custom VPC, every step below is identical — you just pic
 6. Security group: allow **HTTP (80)** from `0.0.0.0/0`, **SSH (22)** from your IP only
 7. **User data** (bootstraps the web server on boot):
    ```bash
-   #!/bin/bash
+  #!/bin/bash
 dnf install -y nginx || yum install -y nginx
 
 TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
@@ -60,6 +60,7 @@ EOF
 
 systemctl enable nginx
 systemctl start nginx
+
    ```
    > Tip: including the AZ/region in the page output makes failover testing visually obvious.
 
