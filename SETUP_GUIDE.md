@@ -28,41 +28,42 @@ If you do switch to a custom VPC, every step below is identical — you just pic
 6. Security group: allow **HTTP (80)** from `0.0.0.0/0`, **SSH (22)** from your IP only
 7. **User data** (bootstraps the web server on boot):
    ```bash
-  #!/bin/bash
-dnf install -y nginx || yum install -y nginx
+   #!/bin/bash
+   dnf install -y nginx || yum install -y nginx
 
-TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
-PRIVATE_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4)
-AZ=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone)
+   TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+   INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+   PRIVATE_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4)
+   AZ=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone)
 
-cat > /usr/share/nginx/html/index.html <<EOF
-<!DOCTYPE html>
-<html>
-<head><title>Server Info</title>
-<style>
-body{font-family:monospace;background:#0d1117;color:#dfe6ee;display:flex;height:100vh;align-items:center;justify-content:center}
-.card{background:#131a24;border:1px solid #232d3b;border-radius:12px;padding:32px 40px;text-align:center}
-h1{color:#4fc3d9;margin:0 0 10px}
-p{color:#7f8ea3;margin:4px 0}
-</style></head>
-<body>
-  <div class="card">
-    <h1>Served by $INSTANCE_ID</h1>
-    <p>Private IP: $PRIVATE_IP</p>
-    <p>AZ: $AZ</p>
-    <p id="time"></p>
-  </div>
-  <script>document.getElementById('time').textContent = new Date().toString();</script>
-</body>
-</html>
-EOF
+   cat > /usr/share/nginx/html/index.html <<EOF
+   <!DOCTYPE html>
+   <html>
+   <head><title>Server Info</title>
+   <style>
+   body{font-family:monospace;background:#0d1117;color:#dfe6ee;display:flex;height:100vh;align-items:center;justify-content:center}
+   .card{background:#131a24;border:1px solid #232d3b;border-radius:12px;padding:32px 40px;text-align:center}
+   h1{color:#4fc3d9;margin:0 0 10px}
+   p{color:#7f8ea3;margin:4px 0}
+   </style></head>
+   <body>
+     <div class="card">
+       <h1>Served by $INSTANCE_ID</h1>
+       <p>Private IP: $PRIVATE_IP</p>
+       <p>AZ: $AZ</p>
+       <p id="time"></p>
+     </div>
+     <script>document.getElementById('time').textContent = new Date().toString();</script>
+   </body>
+   </html>
+   EOF
 
-systemctl enable nginx
-systemctl start nginx
-
+   systemctl enable nginx
+   systemctl start nginx
    ```
-   > Tip: including the AZ/region in the page output makes failover testing visually obvious.
+   > This script uses IMDSv2 (the token-based metadata request, required on newer AMIs/Amazon Linux 2023) to pull the instance ID, private IP, and Availability Zone, then renders them on a styled page. This makes it immediately obvious during testing which instance and AZ served the request — and during failover, which region.
+   >
+   > **Note:** this uses **nginx** (`/usr/share/nginx/html/`) instead of **httpd/Apache** (`/var/www/html/`) as the web server. If you're switching from an existing httpd-based setup, make sure your security group and target group health check still point to port 80, and that only one of httpd/nginx is installed on the instance to avoid a port conflict.
 
 ### Step 2: Target Group
 1. EC2 → Target Groups → Create target group
